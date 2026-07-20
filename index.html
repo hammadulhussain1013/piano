@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#F6F7FB" />
+  <meta name="description" content="A clean, full 88-key virtual piano you can play with your keyboard, mouse, or touch." />
+  <title>Simple Piano</title>
+
+  <!-- Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tone.js + MIDI (loaded before our script) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Ambient blobs for soft depth -->
+  <div class="ambient" aria-hidden="true">
+    <span class="blob blob--a"></span>
+    <span class="blob blob--b"></span>
+  </div>
+
+  <!-- Start / loading gate -->
+  <div class="gate" id="gate">
+    <div class="gate__card">
+      <div class="gate__mark" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <h2 class="gate__title">Simple Piano</h2>
+      <p class="gate__text" id="gateText">Tap anywhere to load the sound engine.</p>
+      <button class="gate__btn" id="gateBtn" type="button">Start playing</button>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <h1 class="site-title">Simple Piano</h1>
+    <p class="site-subtitle">Play with your keyboard, mouse, or touch.</p>
+  </header>
+
+  <main class="stage">
+    <section class="piano-shell" aria-label="Piano">
+      <canvas class="fx" id="fx" aria-hidden="true"></canvas>
+
+      <div class="piano-scroll" id="pianoScroll">
+        <div class="keyboard" id="keyboard" role="group" aria-label="88 key piano keyboard"></div>
+      </div>
+
+      <div class="scroll-hint" id="scrollHint" aria-hidden="true">Scroll to explore the full range →</div>
+    </section>
+
+    <!-- Floating control toolbar -->
+    <div class="toolbar" role="toolbar" aria-label="Piano controls">
+      <div class="group group--transport">
+        <button class="btn btn--icon" id="recordBtn" type="button" aria-pressed="false" title="Record">
+          <svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="6"/></svg>
+          <span class="btn__label">Record</span>
+        </button>
+        <button class="btn btn--icon" id="playBtn" type="button" title="Play recording (Space)" disabled>
+          <svg viewBox="0 0 24 24" class="ico"><path d="M8 5v14l11-7z"/></svg>
+          <span class="btn__label">Play</span>
+        </button>
+        <button class="btn btn--icon" id="stopBtn" type="button" title="Stop" disabled>
+          <svg viewBox="0 0 24 24" class="ico"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+          <span class="btn__label">Stop</span>
+        </button>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="group">
+        <button class="btn btn--icon toggle" id="metroBtn" type="button" aria-pressed="false" title="Metronome">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M9 3h6l3 16H6zM12 7l0 8M4 21h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn__label">Metronome</span>
+        </button>
+        <label class="field" title="Tempo">
+          <span class="field__label">Tempo</span>
+          <span class="stepper">
+            <input class="num" id="tempo" type="number" min="40" max="240" step="1" value="120" inputmode="numeric" aria-label="Tempo in beats per minute" />
+            <span class="unit">BPM</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="group">
+        <label class="field field--slider" title="Volume">
+          <span class="field__label">Volume</span>
+          <input class="slider" id="volume" type="range" min="0" max="100" value="78" aria-label="Volume" />
+        </label>
+        <button class="btn btn--icon toggle" id="sustainBtn" type="button" aria-pressed="false" title="Sustain (hold pedal)">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M12 3v10m0 0a4 4 0 104 4v-2M12 13a4 4 0 01-4 4v-2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span class="btn__label">Sustain</span>
+        </button>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="group">
+        <label class="field" title="Transpose">
+          <span class="field__label">Transpose</span>
+          <span class="stepper">
+            <button class="chip" id="transDown" type="button" aria-label="Transpose down">–</button>
+            <span class="readout" id="transReadout">0</span>
+            <button class="chip" id="transUp" type="button" aria-label="Transpose up">+</button>
+          </span>
+        </label>
+        <label class="field" title="Octave shift for the computer keyboard">
+          <span class="field__label">Octave</span>
+          <span class="stepper">
+            <button class="chip" id="octDown" type="button" aria-label="Octave down">–</button>
+            <span class="readout" id="octReadout">0</span>
+            <button class="chip" id="octUp" type="button" aria-label="Octave up">+</button>
+          </span>
+        </label>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="group">
+        <button class="btn btn--icon toggle is-on" id="labelsBtn" type="button" aria-pressed="true" title="Show key labels">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M4 7h16M4 12h16M4 17h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span class="btn__label">Labels</span>
+        </button>
+        <button class="btn btn--icon toggle" id="themeBtn" type="button" aria-pressed="false" title="Toggle dark mode">
+          <svg viewBox="0 0 24 24" class="ico ico--sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" class="ico ico--moon"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>
+          <span class="btn__label">Theme</span>
+        </button>
+        <button class="btn btn--icon" id="fsBtn" type="button" title="Fullscreen">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M4 9V5a1 1 0 011-1h4M20 9V5a1 1 0 00-1-1h-4M4 15v4a1 1 0 001 1h4M20 15v4a1 1 0 01-1 1h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          <span class="btn__label">Fullscreen</span>
+        </button>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <div class="group">
+        <button class="btn btn--icon" id="midiDownload" type="button" title="Download recording as MIDI" disabled>
+          <svg viewBox="0 0 24 24" class="ico"><path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn__label">MIDI</span>
+        </button>
+        <button class="btn btn--icon" id="midiUploadBtn" type="button" title="Upload a MIDI file to play">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M12 20V10m0 0l-4 4m4-4l4 4M5 5h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn__label">Upload</span>
+        </button>
+        <input id="midiFile" type="file" accept=".mid,.midi,audio/midi" hidden />
+        <button class="btn btn--icon btn--danger" id="resetBtn" type="button" title="Reset everything">
+          <svg viewBox="0 0 24 24" class="ico"><path d="M4 4v5h5M20 20v-5h-5M19 9A8 8 0 006 5.3M5 15a8 8 0 0013 3.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="btn__label">Reset</span>
+        </button>
+      </div>
+    </div>
+
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <div class="sr-only" aria-live="polite" id="srLive"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
